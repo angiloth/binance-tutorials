@@ -83,7 +83,6 @@ class CryptoBot():
         """
         for asset in self.assets:
             print (candle_data)
-            print (asset.trade_symbol)
             asset.candle_data = candle_data[asset.trade_symbol]
             rsi_results = self.rsi_indicator(asset.candle_data)
             #todo: turn this into a factory of indicators
@@ -93,8 +92,6 @@ class CryptoBot():
 
             # temporary:
             result = rsi_results
-
-            print(asset.in_position)
 
             if result:
                 self.place_order(asset, result)
@@ -155,7 +152,7 @@ class CryptoBot():
         return None
 
 
-class TickerListener():
+class BinanceTickerListener():
     """ This class listens to the binance ticker and stores 
     candle data to a dictoinary. 
 
@@ -268,5 +265,5 @@ symbols = bot.get_symbols()
 
 # run the listener for live data
 # a callback will trigger our bot to evaluate  
-listener = TickerListener(callback=bot.process_data, simulation=True, symbols=symbols)
+listener = BinanceTickerListener(callback=bot.process_data, simulation=True, symbols=symbols)
 listener.run()

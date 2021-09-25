@@ -20,6 +20,37 @@ class BinanceClient():
 
         return True
 
+class CryptoAsset():
+    """
+    Data Structure for a crypto asset.
+    Will store info regarding a particular crypto currency and its progress,
+    with the ability to save the state to disk for later recovery.
+    """ 
+
+    def __init__(self, trade_symbol="ETHUSD"):
+        self.trade_symbol = trade_symbol
+        self.in_position = False # is money committed to asset?
+        self.candle_data = {}
+        self.simulation = True
+        self.max_funds = 100
+        self.trade_quantity = 0.05
+
+        #add other data here
+
+
+        # todo: store per-symbol tracker data in a text doc
+        if self.trade_symbol=="ETHUSD":
+            # todo: add interval argument
+            self.binance_socket = "wss://stream.binance.com:9443/ws/ethusdt@kline_1m"
+
+
+    def save(self):
+        pass
+
+    def load(self):
+        pass
+
+
 
 
 class CryptoBot():
@@ -38,65 +69,56 @@ class CryptoBot():
         self.RSI_PERIOD = 14
         self.RSI_OVERBOUGHT = 70
         self.RSI_OVERSOLD = 30
-        self.TRADE_SYMBOL = 'ETHUSD'
-        self.TRADE_QUANTITY = 0.05
 
-        # in_position is a variable declaring if we already have our 
-        # money committed. We should epand this logic for multiple 
-        # tiered money pools
-        self.in_position = False
-
-        self.simulation=simulation
+        self.assets = []
 
 
     def process_data(self, candle_data):
         """ For a set of candle data, process the indicators
         and then determine a course of action: Buy, Sell, Pass.
         """
+        for asset in assets:
+            rsi_results = self.rsi_indicator(asset.candle_data)
+            #todo: turn this into a factory of indicators
 
-        rsi_results = self.rsi_indicator(candle_data)
-        #todo: turn this into a factory of indicators
+            #run other indicators here
+            # based on indicators, process a binance order
 
-        #run other indicators here
-        # based on indicators, process a binance order
+            # temporary:
+            result = rsi_results
 
-        # temporary:
-        result = rsi_results
+            print(asset.in_position)
 
-        # test
-        result = SIDE_BUY
-        print(self.in_position)
-
-        if result:
-            self.place_order(result)
+            if result:
+                self.place_order(asset, result)
 
 
-    def place_order(self, order_type):
+    def place_order(self, asset, order_type):
         """Place the order through binance and save results to a  transaction spreadsheet.
         If simulation mode is active, skip binance.
         """
 
         # todo : export transaction results in a spreadhseet on disk
 
-        if order_type == SIDE_SELL and self.in_position:
-            if self.simulation:
-                print ('Sold!', self.TRADE_QUANTITY, self.TRADE_SYMBOL)
+        if order_type == SIDE_SELL and asset.in_position:
+            if asset.simulation:
+                print ('Sold!', asset.trade_quantity, asset.trade_symbol)
                 order_succeeded = True
             else:
-                order_succeeded = BinanceClient.order(SIDE_SELL, self.TRADE_QUANTITY, self.TRADE_SYMBOL)
+                order_succeeded = BinanceClient.order(SIDE_SELL, asset.trade_quantity, asset.trade_symbol)
 
             if order_succeeded:
-                self.in_position = False
+                asset.in_position = False
 
         if order_type == SIDE_BUY and not self.in_position:
-            if self.simulation:
-                print ('Bought!', self.TRADE_QUANTITY, self.TRADE_SYMBOL)
+            if asset.simulation:
+                print ('Bought!', asset.trade_quantity, asset.trade_symbol)
                 order_succeeded = True
             else:
-                order_succeeded = BinanceClient.order(SIDE_BUY, self.TRADE_QUANTITY, self.TRADE_SYMBOL)
+                order_succeeded = BinanceClient.order(SIDE_BUY, asset.trade_quantity, asset.trade_symbol)
 
             if order_succeeded:
-                self.in_position = True
+                asset.in_position = True
 
 
     def rsi_indicator(self, candle_data):
@@ -149,8 +171,8 @@ class TickerListener():
     indicators as needed
     """
 
-    def __init__(self, callback=None):
-        self.SOCKET = "wss://stream.binance.com:9443/ws/ethusdt@kline_1m"
+    def __init__(self, callback=None, assets=[], simulation=False):
+        
         self.callback = callback
 
         self.candle_data = {
@@ -185,24 +207,44 @@ class TickerListener():
                 print('triggered')
 
 
-    def run(self):
-        ws = websocket.WebSocketApp(
-            self.SOCKET, 
+    def retrieve_binance_data(self):
+        #todo: check api and configure for tracking multiple assets
+
+        s = websocket.WebSocketApp(
+            asset.binance_socket, 
             on_open=self.on_open, 
             on_close=self.on_close,
             on_message=self.on_message
-            )
+        )
         ws.run_forever()
 
+    def run(self):
+        if self.simulation:
+            self.retrieve_simulated_data()
+
+        else:
+            self.retrieve_binance_data():
 
 
-bot =  CryptoBot(simulation=True)        
+
+    def retrieve_simulated_data(self):
+
+        for asset in self.assets:
+
+            # make an arbitrary array of close info
+            fake_close_data = [float(i) for i in range(1,20)]
+            self.candle_data[asset.trade_symbol]={
+                'closes':fake_close_data,
+                }
+            }
+
+
+
+eth =  CryptoAsset(trade_symbol="ETHUSD", simulation=True)   
+bot = CryptoBot(asset)
+bot.add_asset(eth)
+
 
 # run the listener for live data:     
-# listener = TickerListener(callback=bot.process_data)
-# listener.run()
-
-# or feed the bot fake data:
-fake_close_data = [float(i) for i in range(1,20)]
-candle_data = {'closes':fake_close_data}
-bot.process_data(candle_data)
+listener = TickerListener(callback=bot.process_data, simulation=True, assets=CryptoBot.assets)
+listener.run()

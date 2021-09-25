@@ -7,7 +7,7 @@ from binance.enums import SIDE_SELL, SIDE_BUY, ORDER_TYPE_MARKET
 class BinanceClient():
     """ The hook to binance client for making buy/sell orders """
 
-    #staticmethod
+    @staticmethod
     def order(side, quantity, symbol,order_type=ORDER_TYPE_MARKET):
         client = Client(config.API_KEY, config.API_SECRET, tld='nz')
         try:
@@ -265,5 +265,5 @@ symbols = bot.get_symbols()
 
 # run the listener for live data
 # a callback will trigger our bot to evaluate  
-listener = BinanceTickerListener(callback=bot.process_data, simulation=True, symbols=symbols)
+listener = BinanceTickerListener(callback=bot.process_data, simulation=False, symbols=symbols)
 listener.run()
